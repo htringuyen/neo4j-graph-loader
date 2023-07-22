@@ -28,7 +28,7 @@ public class CsvIngestProperty {
         var dir = new File(path);
 
         if (!dir.isDirectory()) {
-            throw new InvalidConfigException("csv.dir.base is not a directory", "csv.dir.base");
+            throw new InvalidConfigException("csv.dir.base [" + getPreloadFile().getAbsolutePath() + "] is not a directory", "csv.dir.base");
         }
 
         return dir;

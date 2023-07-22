@@ -1,5 +1,14 @@
 plugins {
-    id 'java'
+    id 'application'
+}
+
+
+ext {
+	javaMainClass='org.snowj.synthea.ingest.GraphLoaderApplication'
+}
+
+application {
+	mainClassName=javaMainClass
 }
 
 group = 'org.example'

@@ -1,2 +1,0 @@
-00:59:30.134 [main] WARN  o.s.synthea.ingest.tests.LogbackTest - Hello, World!
-00:59:30.134 [main] ERROR o.s.synthea.ingest.tests.LogbackTest - This is a test on Logback.

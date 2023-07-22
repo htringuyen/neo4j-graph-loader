@@ -10,11 +10,15 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.TreeMap;
 
 public class CsvIngestParser {
     private static final String FILE_PROTOCOL = "file://";
+
+    private static final String CYPHER_NAME_REGEX = "^\\d{2}-.*\\.cql$";
+    private static final String CYPHER_EXTRACT_NAME_REGEX = "^\\d{2}-(.*?)\\.cql$";
     public static List<PreloadBean> parsePreloadBeans(File cypher) throws IngestParsingException {
         return Arrays.stream(parseCypher(cypher).split(";"))
                 .map(String::trim)
@@ -24,23 +28,31 @@ public class CsvIngestParser {
     }
 
     public static Map<String, IngestBean> parseIngestBeans(File csvDir, File cypherDir, int batchsize, OnErrorOption option) throws IngestParsingException {
-        var csvNames = csvDir.list();
-        if (csvNames == null) {
+        var cypherNames = cypherDir.list();
+        if (cypherNames == null) {
             throw new IngestParsingException("Error listing csv directory: " + csvDir.getAbsolutePath());
         }
+        Arrays.sort(cypherNames);
 
-        return Arrays.stream(csvNames)
-                .filter(name -> name.endsWith(".csv"))
-                .collect(TreeMap::new, (map, csvName) -> {
+        return Arrays.stream(cypherNames)
+                .filter(name -> name.matches(CYPHER_NAME_REGEX))
+                .collect(TreeMap::new, (map, cypherName) ->
+                {
+                    var pattern = Pattern.compile(CYPHER_EXTRACT_NAME_REGEX);
+                    var matcher = pattern.matcher(cypherName);
+                    String csvName = null;
+                    if (matcher.find()) {
+                        csvName = matcher.group(1);
+                    }
                     var ingestBean =
                             IngestBeanImpl.builder()
-                                    .csvUrl(FILE_PROTOCOL + csvDir.getPath() + File.separator + csvName)
-                                    .rowCypher(parseCypher(new File(cypherDir, csvName.replace(".csv", ".cql")),
-                                            "//TODO: " + csvName.replace(".csv", ".cql")))
+                                    .csvUrl(FILE_PROTOCOL + csvDir.getPath() + File.separator + csvName + ".csv")
+                                    .rowCypher(parseCypher(new File(cypherDir, cypherName),
+                                            "//TODO: " + cypherName))
                                     .batchsize(batchsize)
                                     .onError(option)
                                     .build();
-                    map.put(csvName, ingestBean);
+                    map.put(csvName + ".csv", ingestBean);
                 }, TreeMap::putAll);
     }
 
