@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class CypherResultImpl implements CypherResult {
-    private final boolean successful;
+    private final boolean hasError;
     private final List<String> errorMessages;
     private final long executingTime;
     private final TimeUnit executingTimeUnit;
@@ -15,9 +15,9 @@ public class CypherResultImpl implements CypherResult {
     private final SummaryCounters counters;
 
     public CypherResultImpl(
-            boolean successful, List<String> errorMessages,
+            boolean hasError, List<String> errorMessages,
             SummaryCounters counters, long executingTime, TimeUnit executingTimeUnit) {
-        this.successful = successful;
+        this.hasError = hasError;
         this.errorMessages = errorMessages;
         this.counters = counters;
         this.executingTime = executingTime;
@@ -25,8 +25,8 @@ public class CypherResultImpl implements CypherResult {
     }
 
     @Override
-    public boolean isSuccessful() {
-        return successful;
+    public boolean hasError() {
+        return hasError;
     }
 
     @Override

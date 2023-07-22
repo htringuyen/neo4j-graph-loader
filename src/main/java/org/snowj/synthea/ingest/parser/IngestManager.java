@@ -3,11 +3,12 @@ package org.snowj.synthea.ingest.parser;
 import org.snowj.synthea.ingest.loader.OnErrorOption;
 
 import java.util.List;
+import java.util.Map;
 
 public interface IngestManager {
-    public List<IngestBean> getIngestBeans();
+    public Map<String, IngestBean> getIngestBeans();
 
-    public PreloadBean getPreloadBean();
+    public List<PreloadBean> getPreloadBeans();
 
     public OnErrorOption getOnErrorOption();
 }

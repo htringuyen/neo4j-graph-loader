@@ -3,9 +3,15 @@
     <property name="LOG_FILE_NAME" value="tests" />
     <timestamp key="bySecond" datePattern="yyyyMMdd'T'HHmmss"/>
 
+<!--    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">-->
+<!--        <encoder>-->
+<!--            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>-->
+<!--        </encoder>-->
+<!--    </appender>-->
+
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} - %msg%n</pattern>
         </encoder>
     </appender>
 
@@ -25,19 +31,23 @@
         </encoder>
     </appender>
 
+<!--    <appender name="FILE-FRESH" class="ch.qos.logback.core.FileAppender">-->
+<!--        <file>${LOG_ROOT}/${LOG_FILE_NAME}-${bySecond}.log</file>-->
+<!--        <append>true</append>-->
+<!--        <encoder>-->
+<!--            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>-->
+<!--        </encoder>-->
+<!--    </appender>-->
+
     <appender name="FILE-FRESH" class="ch.qos.logback.core.FileAppender">
         <file>${LOG_ROOT}/${LOG_FILE_NAME}-${bySecond}.log</file>
         <append>true</append>
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <logger name="org.snowj.synthea.ingest.tests" level="INFO">
-        <appender-ref ref="FILE-FRESH"/>
-    </logger>
-
-    <root level="ERROR">
+    <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>

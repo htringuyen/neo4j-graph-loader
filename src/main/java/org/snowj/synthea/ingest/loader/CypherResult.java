@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public interface CypherResult {
-    public boolean isSuccessful();
+    public boolean hasError();
     public List<String> errorMessages();
     public long executingTime(TimeUnit unit);
 

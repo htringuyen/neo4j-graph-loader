@@ -20,7 +20,7 @@ public abstract class IngestBean implements CypherRunner {
         var result = session.run(getQuery(), txConfig);
         var errorMessages = extractErrorMessages(result);
         return new CypherResultImpl(
-                errorMessages.isEmpty(),
+                ! errorMessages.isEmpty(),
                 errorMessages,
                 result.consume().counters(),
                 result.consume().resultAvailableAfter(TimeUnit.MILLISECONDS),

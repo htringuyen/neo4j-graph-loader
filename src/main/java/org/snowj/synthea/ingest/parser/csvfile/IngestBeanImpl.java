@@ -84,7 +84,7 @@ public class IngestBeanImpl extends org.snowj.synthea.ingest.parser.IngestBean {
         public IngestBean build() {
             return new IngestBeanImpl(
                     String.format(
-                            "LOAD CSV WITH HEADER FROM '%s' AS row\n" +
+                            "LOAD CSV WITH HEADERS FROM '%s' AS row\n" +
                                     "CALL {\n" +
                                     "%s\n" +
                                     "}\n" +
@@ -92,8 +92,8 @@ public class IngestBeanImpl extends org.snowj.synthea.ingest.parser.IngestBean {
                                     "ON ERROR %s\n" +
                                     "REPORT STATUS AS s\n" +
                                     "RETURN linenumber() AS linenumner, s.committed AS committed, " +
-                                    "       s.errorMessage AS errorMessage, s.started AS started, " +
-                                    "       s.transactionId AS transactionId",
+                                    "s.errorMessage AS errorMessage, s.started AS started, " +
+                                    "s.transactionId AS transactionId",
                             buildCsvUrl(),
                             buildRowCypher(),
                             buildBatchsize(),

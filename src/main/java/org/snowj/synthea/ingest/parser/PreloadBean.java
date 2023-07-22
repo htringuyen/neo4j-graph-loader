@@ -25,7 +25,7 @@ public class PreloadBean implements CypherRunner {
     public CypherResult execute(Session session, TransactionConfig txConfig) {
         var result = session.run(getQuery(), txConfig);
         return new CypherResultImpl(
-                true, // successful
+                false, // successful
                 null, // errorMessages
                 result.consume().counters(),
                 result.consume().resultAvailableAfter(TimeUnit.MILLISECONDS),
