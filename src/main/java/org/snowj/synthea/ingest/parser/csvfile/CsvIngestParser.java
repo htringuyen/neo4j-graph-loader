@@ -17,8 +17,9 @@ import java.util.TreeMap;
 public class CsvIngestParser {
     private static final String FILE_PROTOCOL = "file://";
 
-    private static final String CYPHER_NAME_REGEX = "^\\d{2}-.*\\.cql$";
+    private static final String CYPHER_NAME_REGEX = "^\\d{2}-.+\\.cql$";
     private static final String CYPHER_EXTRACT_NAME_REGEX = "^\\d{2}-(.*?)\\.cql$";
+
     public static List<PreloadBean> parsePreloadBeans(File cypher) throws IngestParsingException {
         return Arrays.stream(parseCypher(cypher).split(";"))
                 .map(String::trim)
@@ -42,17 +43,17 @@ public class CsvIngestParser {
                     var matcher = pattern.matcher(cypherName);
                     String csvName = null;
                     if (matcher.find()) {
-                        csvName = matcher.group(1);
+                        csvName = matcher.group(1) + ".csv";
                     }
                     var ingestBean =
                             IngestBeanImpl.builder()
-                                    .csvUrl(FILE_PROTOCOL + csvDir.getPath() + File.separator + csvName + ".csv")
+                                    .csvUrl(FILE_PROTOCOL + csvDir.getPath() + File.separator + csvName)
                                     .rowCypher(parseCypher(new File(cypherDir, cypherName),
                                             "//TODO: " + cypherName))
                                     .batchsize(batchsize)
                                     .onError(option)
                                     .build();
-                    map.put(csvName + ".csv", ingestBean);
+                    map.put(cypherName, ingestBean);
                 }, TreeMap::putAll);
     }
 
