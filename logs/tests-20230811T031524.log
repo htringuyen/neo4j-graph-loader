@@ -1,0 +1,195 @@
+csv.dir.base: /var/lib/neo4j/import/csv-1k
+cypher.dir.base: /home/nhtri/javaprojs/synthea-graph/neo4j-graph-loader/src/main/resources/cypher
+csv.batchsize: 1500
+csv.loading.onerror: TERMINATE_PROGRAM
+csv.preloading.file: /home/nhtri/javaprojs/synthea-graph/neo4j-graph-loader/src/main/resources/cypher/preloading.cql
+csv.postloading.file: /home/nhtri/javaprojs/synthea-graph/neo4j-graph-loader/src/main/resources/cypher/postloading.cql
+Cleaning graph
+Executing cypher:
+--------------------------------------------------
+MATCH (n) CALL {WITH n DETACH DELETE n} IN TRANSACTIONS OF 1000 ROWS
+--------------------------------------------------
+Nodes deleted: 450093
+Relationships deleted: 880523
+==================================================
+Execute pre-loading cypher before ingesting
+==================================================
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT state_code IF NOT EXISTS FOR (n:State) REQUIRE (n.code) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 2 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT county_fips IF NOT EXISTS FOR (n:County) REQUIRE (n.fips) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 2 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE INDEX city_name IF NOT EXISTS FOR (n:City) ON n.name
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE INDEX code_identifier IF NOT EXISTS FOR (n:Code) ON (n.identifier)
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 1 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT marker_id_value IF NOT EXISTS FOR (n:Marker) REQUIRE (n.uuid, n.value) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE INDEX marker_id IF NOT EXISTS FOR (n:Marker) ON (n.uuid)
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 1 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT patient_id IF NOT EXISTS FOR (n:Patient) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT payer_id IF NOT EXISTS FOR (n:Payer) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT organization_id IF NOT EXISTS FOR (n:Organization) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT provider_id IF NOT EXISTS FOR (n:Provider) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 1 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT encounter_id IF NOT EXISTS FOR (n:Encounter) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 00-geography.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/geography.csv' AS row
+CALL {
+WITH row
+MERGE (state:State {code:row.STCODE})
+    ON CREATE
+    SET state.name = row.STNAME,
+        state.abbrev = row.ABBREV,
+        state.fips = row.STFIPS
+MERGE (county:County {fips:row.FIPS})
+    ON CREATE
+    SET county.area = row.COUNTY,
+        county.name = row.CTYNAME
+MERGE (county)-[:STATE]->(state)
+MERGE (city:City {name:trim(row.NAME)})-[:COUNTY]->(county)
+
+FOREACH(ignore IN CASE WHEN row.ZIP IS NOT NULL AND row.ZIP <> '' THEN [1] ELSE [] END |
+    MERGE (zip:ZipCode {code:row.ZIP})
+        ON CREATE
+        SET zip.location = point({latitude:toFloat(row.LAT), longitude:toFloat(row.LON)})
+    SET county.ssa = row.CTYSSA
+    MERGE (city)-[:HAS_ZIPCODE]->(zip)
+)
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Error while loading graph
+Caused by: Couldn't load the external resource at: file:/var/lib/neo4j/import/csv-1k/geography.csv (Transactions committed: 0)

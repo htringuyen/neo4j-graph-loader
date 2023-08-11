@@ -28,7 +28,7 @@ public class CsvIngestProperty {
         var dir = new File(path);
 
         if (!dir.isDirectory()) {
-            throw new InvalidConfigException("csv.dir.base [" + getPreloadFile().getAbsolutePath() + "] is not a directory", "csv.dir.base");
+            throw new InvalidConfigException("csv.dir.base [" + getPreLoadingFile().getAbsolutePath() + "] is not a directory", "csv.dir.base");
         }
 
         return dir;
@@ -64,8 +64,8 @@ public class CsvIngestProperty {
         return option != null ? option : OnErrorOption.TERMINATE_PROGRAM;
     }
 
-    public File getPreloadFile() throws InvalidConfigException{
-        var fileName = env.getProperty("csv.preload.name");
+    public File getPreLoadingFile() throws InvalidConfigException{
+        var fileName = env.getProperty("csv.preloading.name");
         if (fileName == null) {
             return null;
         }
@@ -73,8 +73,24 @@ public class CsvIngestProperty {
         var file = new File(getCypherDir(), fileName);
 
         if (!file.isFile()) {
-            throw new InvalidConfigException("csv.preload.name ["
+            throw new InvalidConfigException("csv.preloading.name ["
                     + file.getAbsolutePath() + "] is not a file", "csv.preload.name");
+        }
+
+        return file;
+    }
+
+    public File getPostLoadingFile() throws InvalidConfigException{
+        var fileName = env.getProperty("csv.postloading.name");
+        if (fileName == null) {
+            return null;
+        }
+
+        var file = new File(getCypherDir(), fileName);
+
+        if (!file.isFile()) {
+            throw new InvalidConfigException("csv.postloading.name ["
+                    + file.getAbsolutePath() + "] is not a file", "csv.postloading.name");
         }
 
         return file;
@@ -86,6 +102,7 @@ public class CsvIngestProperty {
         logger.info("cypher.dir.base: {}", this.getCypherDir());
         logger.info("csv.batchsize: {}", this.getBatchsize());
         logger.info("csv.loading.onerror: {}", this.getOnErrorOption());
-        logger.info("csv.preload.file: {}", this.getPreloadFile());
+        logger.info("csv.preloading.file: {}", this.getPreLoadingFile());
+        logger.info("csv.postloading.file: {}", this.getPostLoadingFile());
     }
 }

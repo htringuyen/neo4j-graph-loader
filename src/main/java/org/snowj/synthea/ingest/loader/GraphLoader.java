@@ -3,8 +3,8 @@ package org.snowj.synthea.ingest.loader;
 import org.neo4j.driver.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.snowj.synthea.ingest.parser.ExecutingBean;
 import org.snowj.synthea.ingest.parser.IngestManager;
-import org.snowj.synthea.ingest.parser.PreloadBean;
 
 import java.time.Duration;
 import java.util.List;
@@ -29,41 +29,58 @@ public class GraphLoader implements AutoCloseable {
 
     public void loadNeo4jGraph() {
         try (Session session = driver.session(SessionConfig.forDatabase(database))) {
+            var timeCounter = new TimeCounter();
+
+            timeCounter.start();
             if (needToCleanGraph) {
                 cleanGraph(session);
             }
+            timeCounter.stopAndLogElapsedTime();
+
 
             var txConfig =
                     TransactionConfig.builder()
-                    .withTimeout(Duration.ofSeconds(30))
+                    .withTimeout(Duration.ofSeconds(100))
                     .build();
 
-            logHeader("Execute preload cypher before ingesting");
-            for (var preloadBean: ingestManager.getPreloadBeans()) {
-                logCypher(preloadBean.getQuery().text());
-                var result = preloadBean.execute(session, txConfig);
-                logPreloadResult(result);
-                logErrorMessages(result.errorMessages());
-                if (result.hasError()) {
-                    throw new CypherExecutingException("There are errors in preload cypher execution");
-                }
-            }
+            logHeader("Execute pre-loading cypher before ingesting");
+            runExecutingBeans(session, txConfig, ingestManager.getPreLoadingBeans());
 
             for (Map.Entry<String, IngestBean> ingestBean: ingestManager.getIngestBeans().entrySet()) {
                 logHeader("Execute ingest cypher: " + ingestBean.getKey());
                 logCypher(ingestBean.getValue().getQuery().text());
+                timeCounter.start();
                 var result = ingestBean.getValue().execute(session, txConfig);
+                timeCounter.stopAndLogElapsedTime();
                 logIngestResult(result);
                 logErrorMessages(result.errorMessages());
                 if (result.hasError() && ingestManager.getOnErrorOption() == OnErrorOption.TERMINATE_PROGRAM) {
                     throw new CypherExecutingException("There are errors in ingest cypher execution [OnErrorOption.TERMINATE_PROGRAM]");
                 }
             }
+
+            logHeader("Execute post-loading cypher after ingesting");
+            timeCounter.start();
+            runExecutingBeans(session, txConfig, ingestManager.getPostLoadingBeans());
+            timeCounter.stopAndLogElapsedTime();
+            timeCounter.countAndLogTotalElapsedTime();
         }
         catch (Exception e) {
             logger.error("Error while loading graph");
             logger.error("Caused by: {}", e.getMessage());
             throw new RuntimeException(e);
+        }
+    }
+
+    private void runExecutingBeans(Session session, TransactionConfig txConfig, List<ExecutingBean> executingBeans) throws CypherExecutingException {
+        for (var executingBean: executingBeans) {
+            logCypher(executingBean.getQuery().text());
+            var result = executingBean.execute(session, txConfig);
+            logExecutingResult(result);
+            logErrorMessages(result.errorMessages());
+            if (result.hasError()) {
+                throw new CypherExecutingException("There are errors when executing cypher: " + executingBean.getQuery().text());
+            }
         }
     }
 
@@ -89,8 +106,8 @@ public class GraphLoader implements AutoCloseable {
         logger.info("--------------------------------------------------");
     }
 
-    private void logPreloadResult(CypherResult result) {
-        logger.info("Preload cypher result:");
+    private void logExecutingResult(CypherResult result) {
+        logger.info("Executing cypher result:");
         logger.info("--------------------------------------------------");
         logger.info("Has error: {}", result.hasError());
         logger.info("Executing time: {} ms", result.executingTime(TimeUnit.MILLISECONDS));

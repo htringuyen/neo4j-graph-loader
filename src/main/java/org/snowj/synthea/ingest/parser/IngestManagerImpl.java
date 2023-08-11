@@ -7,12 +7,15 @@ import java.util.List;
 import java.util.Map;
 
 public class IngestManagerImpl implements IngestManager {
-    private List<PreloadBean> preloadBeans;
+    private List<ExecutingBean> preLoadingBeans;
+    private List<ExecutingBean> postLoadingBeans;
     private Map<String, IngestBean> ingestBeans;
     private OnErrorOption onErrorOption;
 
-    public IngestManagerImpl(List<PreloadBean> preloadBeans, Map<String, IngestBean> ingestBeans, OnErrorOption onErrorOption) {
-        this.preloadBeans = preloadBeans;
+    public IngestManagerImpl(List<ExecutingBean> preLoadingBeans, List<ExecutingBean> postLoadingBeans,
+                             Map<String, IngestBean> ingestBeans, OnErrorOption onErrorOption) {
+        this.preLoadingBeans = preLoadingBeans;
+        this.postLoadingBeans = postLoadingBeans;
         this.ingestBeans = ingestBeans;
         this.onErrorOption = onErrorOption;
     }
@@ -23,8 +26,15 @@ public class IngestManagerImpl implements IngestManager {
     }
 
     @Override
-    public List<PreloadBean> getPreloadBeans() {
-        return preloadBeans;
+    public List<ExecutingBean> getPreLoadingBeans()
+    {
+        return preLoadingBeans;
+    }
+
+    @Override
+    public List<ExecutingBean> getPostLoadingBeans()
+    {
+        return postLoadingBeans;
     }
 
     @Override

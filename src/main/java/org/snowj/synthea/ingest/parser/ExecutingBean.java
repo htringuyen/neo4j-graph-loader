@@ -9,10 +9,10 @@ import org.snowj.synthea.ingest.loader.CypherRunner;
 
 import java.util.concurrent.TimeUnit;
 
-public class PreloadBean implements CypherRunner {
+public class ExecutingBean implements CypherRunner {
     private final String cypher;
 
-    public PreloadBean(String cypher) {
+    public ExecutingBean(String cypher) {
         this.cypher = cypher;
     }
 

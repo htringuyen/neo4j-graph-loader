@@ -1,9 +1,9 @@
 package org.snowj.synthea.ingest.parser.csvfile;
 
 import org.snowj.synthea.ingest.loader.OnErrorOption;
+import org.snowj.synthea.ingest.parser.ExecutingBean;
 import org.snowj.synthea.ingest.parser.IngestBean;
 import org.snowj.synthea.ingest.parser.IngestParsingException;
-import org.snowj.synthea.ingest.parser.PreloadBean;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -20,11 +20,11 @@ public class CsvIngestParser {
     private static final String CYPHER_NAME_REGEX = "^\\d{2}-.+\\.cql$";
     private static final String CYPHER_EXTRACT_NAME_REGEX = "^\\d{2}-(.*?)\\.cql$";
 
-    public static List<PreloadBean> parsePreloadBeans(File cypher) throws IngestParsingException {
+    public static List<ExecutingBean> parseExecutingBeans(File cypher) throws IngestParsingException {
         return Arrays.stream(parseCypher(cypher).split(";"))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
-                .map(PreloadBean::new)
+                .map(ExecutingBean::new)
                 .collect(Collectors.toList());
     }
 

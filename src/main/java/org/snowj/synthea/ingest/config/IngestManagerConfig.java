@@ -28,10 +28,11 @@ public class IngestManagerConfig {
     public IngestManager ingestManager() throws InvalidConfigException, IngestParsingException {
         var prop = ingestProperty();
         var onErrorOption = prop.getOnErrorOption();
-        var preloadBeans = CsvIngestParser.parsePreloadBeans(prop.getPreloadFile());
+        var preLoadingBeans = CsvIngestParser.parseExecutingBeans(prop.getPreLoadingFile());
+        var postLoadingBeans = CsvIngestParser.parseExecutingBeans(prop.getPostLoadingFile());
         var ingestBeans = CsvIngestParser.parseIngestBeans(
                 prop.getCsvDir(), prop.getCypherDir(), prop.getBatchsize(), onErrorOption);
-        return new IngestManagerImpl(preloadBeans, ingestBeans, onErrorOption);
+        return new IngestManagerImpl(preLoadingBeans, postLoadingBeans, ingestBeans, onErrorOption);
     }
 
     @Bean

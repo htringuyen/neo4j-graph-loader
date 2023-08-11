@@ -1,0 +1,713 @@
+csv.dir.base: /var/lib/neo4j/import/csv-1k
+cypher.dir.base: /home/nhtri/javaprojs/synthea-graph/neo4j-graph-loader/src/main/resources/cypher
+csv.batchsize: 1500
+csv.loading.onerror: TERMINATE_PROGRAM
+csv.preloading.file: /home/nhtri/javaprojs/synthea-graph/neo4j-graph-loader/src/main/resources/cypher/preloading.cql
+csv.postloading.file: /home/nhtri/javaprojs/synthea-graph/neo4j-graph-loader/src/main/resources/cypher/postloading.cql
+Cleaning graph
+Executing cypher:
+--------------------------------------------------
+MATCH (n) CALL {WITH n DETACH DELETE n} IN TRANSACTIONS OF 1000 ROWS
+--------------------------------------------------
+Nodes deleted: 0
+Relationships deleted: 0
+Elapsed time: 0 seconds
+==================================================
+Execute pre-loading cypher before ingesting
+==================================================
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT state_code IF NOT EXISTS FOR (n:State) REQUIRE (n.code) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 1 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT county_fips IF NOT EXISTS FOR (n:County) REQUIRE (n.fips) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE INDEX city_name IF NOT EXISTS FOR (n:City) ON n.name
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE INDEX code_identifier IF NOT EXISTS FOR (n:Code) ON (n.identifier)
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT marker_id_value IF NOT EXISTS FOR (n:Marker) REQUIRE (n.uuid, n.value) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 1 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE INDEX marker_id IF NOT EXISTS FOR (n:Marker) ON (n.uuid)
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 1 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT patient_id IF NOT EXISTS FOR (n:Patient) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT payer_id IF NOT EXISTS FOR (n:Payer) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 1 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT organization_id IF NOT EXISTS FOR (n:Organization) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT provider_id IF NOT EXISTS FOR (n:Provider) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 0 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+Executing cypher:
+--------------------------------------------------
+CREATE CONSTRAINT encounter_id IF NOT EXISTS FOR (n:Encounter) REQUIRE (n.uuid) IS UNIQUE
+--------------------------------------------------
+Executing cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 1 ms
+Constraints added: 0
+Constraints removed: 0
+Indexes added: 0
+Indexes removed: 0
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 00-geography.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/geography.csv' AS row
+CALL {
+WITH row
+MERGE (state:State {code:row.STCODE})
+    ON CREATE
+    SET state.name = row.STNAME,
+        state.abbrev = row.ABBREV,
+        state.fips = row.STFIPS
+MERGE (county:County {fips:row.FIPS})
+    ON CREATE
+    SET county.area = row.COUNTY,
+        county.name = row.CTYNAME
+MERGE (county)-[:STATE]->(state)
+MERGE (city:City {name:trim(row.NAME)})-[:COUNTY]->(county)
+
+FOREACH(ignore IN CASE WHEN row.ZIP IS NOT NULL AND row.ZIP <> '' THEN [1] ELSE [] END |
+    MERGE (zip:ZipCode {code:row.ZIP})
+        ON CREATE
+        SET zip.location = point({latitude:toFloat(row.LAT), longitude:toFloat(row.LON)})
+    SET county.ssa = row.CTYSSA
+    MERGE (city)-[:HAS_ZIPCODE]->(zip)
+)
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 2 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 55 ms
+Nodes created: 78652
+Nodes deleted: 0
+Relationships created: 86316
+Relationships deleted: 0
+Properties set: 161912
+Labels added: 78652
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 01-concepts.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/concepts.csv' AS row
+CALL {
+    WITH row
+    WITH row, CASE WHEN row.SYSTEM = "http://hl7.org/fhir/sid/cvx"
+        THEN "CVX" ELSE row.SYSTEM END AS codeSystem 
+    CALL apoc.merge.node(["Code", codeSystem], {identifier:row.CODE}, {description:row.DESCRIPTION}, {})
+    YIELD node AS code
+    RETURN code
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 0 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 6 ms
+Nodes created: 0
+Nodes deleted: 0
+Relationships created: 0
+Relationships deleted: 0
+Properties set: 0
+Labels added: 0
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 02-patients.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/patients.csv' AS row
+CALL {
+    WITH row
+    // set basic info
+    MERGE (p:Patient {uuid:row.Id})
+        ON CREATE
+        SET p.ssn = row.SSN,
+            p.firstName = row.FIRST,
+            p.lastName = row.LAST,
+            p.healthcareExpenses = toFloat(row.HEALTHCARE_EXPENSES),
+            p.healthcareCoverage = toFloat(row.HEALTHCARE_COVERAGE),
+            p.income = toFloat(row.INCOME)
+    
+    // set birthdate
+    WITH row, p
+    MERGE (birthMk:Marker {uuid:p.uuid, value:datetime(row.BIRTHDATE)})
+    MERGE (p)-[:BIRTHED]->(birthMk)
+
+    // set deathdate
+    WITH row, p
+    FOREACH(ignore IN CASE WHEN row.DEATHDATE IS NOT NULL AND row.DEATHDATE <> '' THEN [1] ELSE [] END |
+        MERGE (deathMk:Marker {uuid:p.uuid, value:datetime(row.DEATHDATE)})
+        MERGE (p)-[:DIED]->(deathMk)
+    )
+
+    // set sex
+    WITH row, p, CASE WHEN row.GENDER = "F" THEN ["FEMALE"] ELSE ["MALE"] END AS sex
+    MERGE (gender:Gender {alpha:row.GENDER})
+        ON CREATE
+        SET gender.sex = sex
+    MERGE (p)-[:HAS_GENDER]->(gender)
+
+    // set marital state
+    WITH row, p,
+        CASE WHEN row.MARITAL IS NOT NULL AND row.MARITAL <> '' THEN row.MARITAL ELSE "U" END AS mAlpha,
+        CASE row.MARITAL
+        WHEN "M" THEN "MARRIED"
+        WHEN "S" THEN "SINGLE"
+        WHEN "D" THEN "DIVORCE"
+        WHEN "W" THEN "WIDOWING"
+        ELSE "UNKNOW" END
+        AS mType
+    MERGE (maritalStatus:MaritalStatus {alpha:mAlpha})
+        ON CREATE
+        SET maritalStatus.type = mType  
+    MERGE (p)-[:HAS_MARITAL_STATUS]->(maritalStatus)
+
+    // set race
+    WITH row, p
+    MERGE (race:Race {alphaCode:toUpper(row.RACE)})
+    MERGE (p)-[:HAS_RACE]->(race)
+
+    // set ethnicity
+    WITH row, p
+    MERGE (ethnicity:Ethnicity {alphaCode:toUpper(row.ETHNICITY)})
+    MERGE (p)-[:HAS_ETHNICITY]->(ethnicity)
+
+    // set address
+    WITH row, p
+    MATCH (state:State {name:row.STATE})
+    MATCH (county:County)-[:STATE]->(state)
+    WHERE county.fips = row.FIPS OR county.name = row.COUNTY
+
+    WITH row, p, county
+    MATCH (county)<-[:COUNTY]-(city:City)
+    WHERE toLower(trim(city.name)) = toLower(trim(row.CITY))
+    
+    CREATE (address:Address {streetAddress:row.ADDRESS})
+    CREATE (address)-[:CITY]->(city)
+    CREATE (p)-[:HAS_ADDRESS]->(address)
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 0 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 120 ms
+Nodes created: 3799
+Nodes deleted: 0
+Relationships created: 8568
+Relationships deleted: 0
+Properties set: 12374
+Labels added: 3799
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 03-payers.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/payers.csv' AS row
+CALL {
+    WITH row
+    MERGE (p:Payer {uuid:row.Id})
+    ON CREATE
+        SET p.name = row.NAME,
+            p.ownership = row.OWNERSHIP,
+            p.phone = row.PHONE,
+            p.amountCovered = toFloat(row.AMOUNT_COVERED),
+            p.amountUncovered = toFloat(row.AMOUNT_UNCOVERED),
+            p.revenue = toFloat(row.REVENUE),
+            p.coveredEncounters = toInteger(row.COVERED_ENCOUNTERS),
+            p.uncoveredEncounters = toInteger(row.UNCOVERED_ENCOUNTERS),
+            p.coveredMedications = toInteger(row.COVERED_MEDICATIONS),
+            p.uncoveredMedications = toInteger(row.UNCOVERED_MEDICATIONS),
+            p.coveredProcedures = toInteger(row.COVERED_PROCEDURES),
+            p.uncoveredProcedures = toInteger(row.UNCOVERED_PROCEDURES),
+            p.coveredImmunizations = toInteger(row.COVERED_IMMUNIZATIONS),
+            p.uncoveredImmunizations = toInteger(row.UNCOVERED_IMMUNIZATIONS),
+            p.uniqueCustomers = toInteger(row.UNIQUE_CUSTOMERS),
+            p.qolsAverage = toFloat(row.QOLS_AVG),
+            p.memberMonths = toInteger(row.MEMBER_MONTHS)
+    
+    WITH row, p
+    CALL custom.snowj.synthea.createAddress(row.ADDRESS, row.CITY, row.STATE_HEADQUARTERED, row.ZIP, null, null)
+    YIELD node AS addr
+    WITH p, addr
+    CREATE (p)-[:HAS_ADDRESS]->(addr)
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 0 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 30 ms
+Nodes created: 9
+Nodes deleted: 0
+Relationships created: 9
+Relationships deleted: 0
+Properties set: 162
+Labels added: 9
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 04-payer_transitions.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/payer_transitions.csv' AS row
+CALL {
+    WITH row
+    WITH row
+    WHERE row.MEMBERID IS NOT NULL AND row.MEMBERID <> ''
+    MATCH (patient:Patient {uuid:row.PATIENT}), (payer:Payer {uuid:row.PAYER})
+
+    // create insurance with basic info
+    WITH row, patient, payer
+    CREATE (insr:Insurance {memberUuid:row.MEMBERID,
+        planOwnership:row.PLAN_OWNERSHIP, ownerName:row.OWNER_NAME})
+    CREATE (patient)-[:HAS_INSURANCE]->(insr)
+    CREATE (insr)-[:FROM_PAYER]->(payer)
+
+    // set start and end time of marker
+    MERGE (startMk:Marker {uuid:row.PATIENT, value:datetime(row.START_DATE)})
+    MERGE (insr)-[:INSURANCE_START]->(startMk)
+    
+    MERGE (endMk:Marker {uuid:row.PATIENT, value:datetime(row.END_DATE)})
+    MERGE (insr)-[:INSURANCE_END]->(endMk)
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 0 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 44 ms
+Nodes created: 22024
+Nodes deleted: 0
+Relationships created: 41884
+Relationships deleted: 0
+Properties set: 54519
+Labels added: 22024
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 05-organizations.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/organizations.csv' AS row
+CALL {
+    WITH row
+    MERGE (orgz:Organization {uuid:row.Id})
+        ON CREATE
+        SET orgz.name = row.NAME,
+            orgz.phone = row.PHONE,
+            orgz.revenue = toFloat(row.REVENUE),
+            orgz.utilization = toInteger(row.UTILIZATION)
+    
+    WITH row, orgz
+    CALL custom.snowj.synthea.createAddress(row.ADDRESS, row.CITY, row.STATE, row.ZIP, toFloat(row.LAT), toFloat(row.LON))
+    YIELD node AS addr
+    CREATE (orgz)-[:HAS_ADDRESS]->(addr)
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 0 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 23 ms
+Nodes created: 592
+Nodes deleted: 0
+Relationships created: 592
+Relationships deleted: 0
+Properties set: 2960
+Labels added: 592
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 06-providers.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/providers.csv' AS row
+CALL {
+    WITH row
+    MATCH (orgz:Organization {uuid:row.ORGANIZATION})
+    WITH row, orgz
+    MERGE (prov:Provider {uuid:row.Id})
+        ON CREATE
+        SET prov.name = row.NAME,
+            prov.gender = row.GENDER,
+            prov.speciality = row.SPECIALITY,
+            prov.numEncounters = toInteger(row.ENCOUNTERS),
+            prov.numProcedures = toInteger(row.PROCEDURES)
+    CREATE (prov)-[:BELONGS_TO]->(orgz)
+    WITH row, prov
+    CALL custom.snowj.synthea.createAddress(row.ADDRESS, row.CITY, row.STATE, row.ZIP, toFloat(row.LAT), toFloat(row.LON))
+    YIELD node AS addr
+    WITH prov, addr
+    CREATE (prov)-[:HAS_ADDRESS]->(addr)
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 0 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 28 ms
+Nodes created: 592
+Nodes deleted: 0
+Relationships created: 1184
+Relationships deleted: 0
+Properties set: 3552
+Labels added: 592
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 07-encounters.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/encounters.csv' AS row
+CALL {
+    WITH row
+
+    // merge encounter and set basic info
+    MATCH (patn:Patient {uuid:row.PATIENT}),
+        (orgz:Organization {uuid:row.ORGANIZATION}),
+        (prov:Provider {uuid:row.PROVIDER})
+    WITH row, patn, orgz, prov
+    MERGE (enc:Encounter {uuid:row.Id})
+        ON CREATE
+        SET enc.baseEncounterCost = toFloat(row.BASE_ENCOUNTER_COST),
+            enc.totalClaimCost = toFloat(row.TOTAL_CLAIM_COST),
+            enc.PAYER_COVERAGE = toFloat(row.PAYER_COVERAGE)
+    MERGE (patn)-[:HAS_ENCOUNTER]->(enc)
+    MERGE (enc)-[:HAS_PROVIDER]->(prov)
+    MERGE (enc)-[:HAS_ORGANIZATION]->(orgz)
+
+    // relabel encounter node
+    WITH row, enc
+    CALL apoc.create.setLabels(enc, ["Encounter", toUpper(row.ENCOUNTERCLASS)]) YIELD node
+    
+    // set start and end encounter time
+    WITH row, enc
+    MERGE (startMk:Marker {uuid:row.PATIENT, value:datetime(row.START)})
+    MERGE (endMk:Marker {uuid:row.PATIENT, value:datetime(row.STOP)})
+    WITH row, enc, startMk, endMk
+    MERGE (enc)-[:ENCOUNTER_STARTED]->(startMk)
+    MERGE (enc)-[:ENCOUNTER_ENDED]->(endMk)
+
+    // set codes related to encounter
+    WITH row, enc
+    MERGE (typeCode:Code:SNOMED_CT {identifier:row.CODE})
+        ON CREATE
+        SET typeCode.description = row.DESCRIPTION
+    MERGE (enc)-[:OF_TYPE]->(typeCode)
+
+    FOREACH(ignore IN CASE WHEN row.REASONCODE IS NOT NULL AND row.REASONCODE <> '' THEN [1] ELSE [] END |
+        MERGE (reasonCode:Code:SNOMED_CT {identifier:row.REASONCODE})
+            ON CREATE
+            SET reasonCode.description = row.REASONDESCRIPTION
+        MERGE (enc)-[:FOR_REASON]->(reasonCode)
+    )
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 36 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 99 ms
+Nodes created: 325361
+Nodes deleted: 0
+Relationships created: 714250
+Relationships deleted: 0
+Properties set: 870654
+Labels added: 325556
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute ingest cypher: 08-allergies.cql
+==================================================
+Executing cypher:
+--------------------------------------------------
+LOAD CSV WITH HEADERS FROM 'file:///var/lib/neo4j/import/csv-1k/allergies.csv' AS row
+CALL {
+    WITH row
+    MATCH (enc:Encounter {uuid:row.ENCOUNTER})
+    WITH row, enc
+    CREATE (enc)-[:HAS_ALLERGY]->(alrg:Allergy)
+    WITH row, alrg
+    CALL apoc.create.setLabels(alrg, ["Allergy", toUpper(row.CATEGORY), toUpper(row.TYPE)]) YIELD node
+
+    // set start and end time
+    WITH row, alrg
+    MERGE (startMk:Marker {uuid:row.PATIENT, value:datetime(row.START)})
+    CREATE (alrg)-[:ALLERGY_STARTED]->(startMk)
+    FOREACH(ignore IN CASE WHEN row.STOP IS NOT NULL AND row.STOP <> '' THEN [1] ELSE [] END |
+        MERGE(endMk:Marker {uuid:row.PATIENT, value:datetime(row.STOP)})
+        CREATE (alrg)-[:ALLERGY_ENDED]->(endMk)
+    )
+
+    // set snomed allergy
+    WITH row, alrg
+    MERGE (alrgCode:SNOMED_CT {identifier:row.CODE})
+        ON CREATE
+        SET alrgCode.description = row.DESCRIPTION
+    CREATE (alrg)-[:CODED_AS]->(alrgCode)
+
+    // set snomed reactions
+    WITh row, alrg, [row.REACTION1, row.REACTION2] AS recCodes, [row.DESCRIPTION1, row.DESCRIPTION2] AS recDescriptions,
+        [row.SEVERITY1, row.SEVERITY2] AS recSeverities
+    UNWIND [0, 1] AS i
+    WITH alrg, recCodes[i] AS recCode, recDescriptions[i] AS recDesr, toUpper(recSeverities[i]) AS recSeverity
+    WHERE recCode IS NOT NULL AND recCode <> ''
+    MERGE (code:SNOMED_CT {identifier: recCode})
+        ON CREATE
+        SET code.description = recDesr
+    WITH alrg, code, recSeverity
+    CALL apoc.create.relationship(alrg, "HAS_REACTION", {severity:recSeverity}, code) YIELD rel
+    RETURN alrg
+
+
+}
+IN TRANSACTIONS OF 1500 ROWS
+ON ERROR BREAK
+REPORT STATUS AS s
+RETURN linenumber() AS linenumner, s.committed AS committed, s.errorMessage AS errorMessage, s.started AS started, s.transactionId AS transactionId
+--------------------------------------------------
+Elapsed time: 0 seconds
+Ingest cypher result:
+--------------------------------------------------
+Has error: false
+Executing time: 26 ms
+Nodes created: 1295
+Nodes deleted: 0
+Relationships created: 3192
+Relationships deleted: 0
+Properties set: 462
+Labels added: 1295
+Labels removed: 0
+Indexes added: 0
+Indexes removed: 0
+Constraints added: 0
+Constraints removed: 0
+--------------------------------------------------
+Error messages:
+--------------------------------------------------
+--------------------------------------------------
+==================================================
+Execute post-loading cypher after ingesting
+==================================================
+Elapsed time: 0 seconds
+Total elapsed time: 41 seconds

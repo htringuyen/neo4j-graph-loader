@@ -8,7 +8,9 @@ import java.util.Map;
 public interface IngestManager {
     public Map<String, IngestBean> getIngestBeans();
 
-    public List<PreloadBean> getPreloadBeans();
+    public List<ExecutingBean> getPreLoadingBeans();
+
+    public List<ExecutingBean> getPostLoadingBeans();
 
     public OnErrorOption getOnErrorOption();
 }

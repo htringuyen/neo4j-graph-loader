@@ -1,0 +1,5 @@
+csv.dir.base: /var/lib/neo4j/import/csv-1k
+cypher.dir.base: /home/nhtri/javaprojs/synthea-graph/neo4j-graph-loader/src/main/resources/cypher
+csv.batchsize: 1500
+csv.loading.onerror: TERMINATE_PROGRAM
+Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'graphLoaderConfig': Unsatisfied dependency expressed through field 'ingestManager': Error creating bean with name 'ingestManager' defined in org.snowj.synthea.ingest.config.IngestManagerConfig: Failed to instantiate [org.snowj.synthea.ingest.parser.IngestManager]: Factory method 'ingestManager' threw exception with message: Error creating bean with name 'ingestProperty': Invocation of init method failed
